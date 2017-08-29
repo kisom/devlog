@@ -1,0 +1,8 @@
+dl: devlogs
+
+Notes on programming and computers, generated with Pelican.
+
++ make html generates the html
++ make devserver is a preview / autoregenerating dev server listening
+  on port 8000
++ make deploy builds and publishes the site

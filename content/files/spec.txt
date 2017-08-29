@@ -1,18 +1,4 @@
-Title: Specification template
 
-Some formatting notes:
-
-+ maximum line width is 72
-+ a minimum of four lines from the last line on a page to the footer
-+ two lines separate the header from the first line on a page
-+ the first page break is a 59 lines
-+ the second is at 115 lines
-+ subsequent page breaks are at offset by 56 lines:
-  + 171, 227, 283, 339, 395, 451, 507, 563, 619, 675, 731, 787, 843,
-    899, 955, 1011, 1067, 1123, 1179, 1235, etc...
-+ a plaintext template is [here](/files/spec.txt).
-
-```
 
 System Specification                                             K. Isom
 system-id revision 1                                      2017 August 28
@@ -183,4 +169,3 @@ system-id                  A new systems tool                August 2017
 
 K. Isom                   System Specification                  [Page 3]
 
-```

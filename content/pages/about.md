@@ -11,3 +11,7 @@ emulators](https://git.kyleisom.net/explore/k6502)) --- generally
 spending more time thinking than the mechanics of software
 engineering. I'd like to rekindle this interest, so I'm trying to
 explore more.
+
+Some links:
+
++ [a specification template for systems](/pages/specification-template.html)

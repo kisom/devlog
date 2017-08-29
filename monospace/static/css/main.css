@@ -13,7 +13,7 @@
 @import url("pygment.css");
 
 body { margin:0px; padding:20px 0px; text-align:center; font-family:Monospace; color:#222; }
-a, a:visited { text-decoration:none; color:#222; }
+a, a:visited { text-decoration:none; color:#222; font-weight: bold; }
 a:hover { color:#FFF; background-color:#111 }
 h1, h2, h3, h4, h5, h6, h7 { margin:0px; text-transform:uppercase; }
 h4, h5, h6 { font-size:14px; }
