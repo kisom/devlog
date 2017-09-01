@@ -61,7 +61,7 @@ help:
 	@echo 'Set the RELATIVE variable to 1 to enable relative urls                    '
 	@echo '                                                                          '
 
-deploy: html publish ssh_upload
+deploy: html publish rsync_upload
 
 html:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(CONFFILE) -v $(PELICANOPTS)
