@@ -1,5 +1,5 @@
 Title: Building multiple Rust programs
-Date: 2017-09-01 10:43
+Date: 2017-09-01 12:01
 Tags: rust, build
 
 One thing that I commonly do in Go is to structure a project such that
