@@ -24,8 +24,8 @@ input, textarea { padding:5px; border:1px solid #8A8A8A; background:#EAEAEA; }
 input:hover, textarea:hover, blockquote:hover { background:#E5E5E5; }
 
 #wrap { margin:0px auto; text-align:left; font-size: 13px; line-height: 1.4; }
-#container { float:right; max-width: 1000px; }
-#sidebar { overflow:hidden; clear:left; text-align:right; width:200px; height:auto; padding:0px 5px 0px 0px; border-right:1px dotted #C8C8C8; }
+#container { max-width: 1000px; }
+#sidebar { overflow:hidden; text-align:right; height:auto; padding:0px 5px 0px 0px; border-right:1px dotted #C8C8C8; }
 #sidebar li { list-style-type:none; }
 #sidebar > li { margin:20px 0px; }
 #sidebar h1 { border-bottom:1px dotted #C8C8C8; }

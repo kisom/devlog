@@ -23,23 +23,22 @@
 
 <body>
 	<div id="wrap" style="width:900px">
-	    <div id="container" style="width:600px">
+	  <div id="container" style="width:600px">
+            <div id="sidebar">
+              <h1><a href="{{ SITEURL }} " title="title">{{ SITENAME }}</a></h1>
+              <span class="description">{{ DESCRIPTION }} </span>
+              <a href="/pages/about.html">About</a> |
+	      <a href="/archives.html">Archives</a> |
+	      <a href="https://git.kyleisom.net/">Git</a></span><br />
+           <span class="feed">Feeds: <a href="/index.rss">RSS</a> | <a href="/index.atom">Atom</a></span>
+           </div>
+	    
             {% include 'github.html' %}
 
             <div class="entry">
                 {% block content %}
                 {% endblock %}
             </div>
-        </div>
-
-
-        <div id="sidebar">
-            <h1><a href="{{ SITEURL }} " title="title">{{ SITENAME }}</a></h1>
-            <span class="description">{{ DESCRIPTION }} </span>
-            <a href="/pages/about.html">About</a> |
-	    <a href="/archives.html">Archives</a> |
-	    <a href="https://git.kyleisom.net/">Git</a></span><br />
-        <span class="feed">Feeds: <a href="/index.rss">RSS</a> | <a href="/index.atom">Atom</a></span>
         </div>
 
         <div id="footer">
