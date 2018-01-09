@@ -9,7 +9,18 @@
             </header>
 
             <article>
-                {{ article.content }}{% include 'comments.html' %}
+                {{ article.content }}
+		{% if article.tags %} 
+	        <hr />
+		<div>
+		    Tags:
+		    {% for tag in article.tags %}
+		    <span itemprop="keywords">
+			<a href="{{ SITEURL }}/{{ tag.url }}" rel="tag">{{ tag }}</a>{% if not loop.last %}, {% endif %}
+		    </span>
+		    {% endfor %}
+		</div>
+		{% endif %}	      
             </article>
 {% else %}
     No posts found.
