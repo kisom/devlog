@@ -18,7 +18,7 @@ a:hover { color:#FFF; background-color:#111 }
 h1, h2, h3, h4, h5, h6, h7 { margin:0px; text-transform:uppercase; }
 h4, h5, h6 { font-size:14px; }
 h1 { padding:0px 0px 15px; margin:0px 0px 15px 0px; }
-blockquote { font-style:italic; background:#222; margin:20px; padding:5px 10px; }
+blockquote { font-style:italic; background:#eee; margin:20px; padding:5px 10px; }
 blockquote cite { display:block; padding:10px 20px 0 0; text-align:right; }
 input, textarea { padding:5px; border:1px solid #8A8A8A; background:#EAEAEA; }
 input:hover, textarea:hover, blockquote:hover { background:#E5E5E5; }
