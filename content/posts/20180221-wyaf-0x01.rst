@@ -5,7 +5,8 @@ Write You a Forth, 0x01
 :tags: wyaf, forth
 
 Following on from the `last post`_ I've decided to frame this as a Write You an
-X-type series where I'll write up my thinking and planning as I go.
+X-type series where I'll write up my thinking and planning as I go. There's a
+(private) `Github repo <https://github.com/kisom/kforth>`_ around, too.
 
 .. _last post: https://dl.kyleisom.net/posts/2018/02/21/2018-02-21-revisiting-forth/
 

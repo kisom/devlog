@@ -25,12 +25,12 @@ with a basic Makefile::
   OBJS :=       linux/io.o     \
                 kforth.o
   TARGET :=     kforth
-  
+
   all: $(TARGET)
-  
+
   $(TARGET): $(OBJS)
           $(CXX) $(CFLAGS) -o $@ $(OBJS)
-  
+
   clean:
           rm -f $(OBJS) $(TARGET)
 
@@ -54,9 +54,7 @@ The interpreter function takes an I/O interface instance, and reads lines in
 an infinite loop, printing "ok" after each line is read. I'll go over the
 methods called on the ``interface`` instance when I get to the I/O subsystem.
 Printing the line buffer right now helps to verify that the I/O subsystem is
-working correctly:
-
-.. code-block: c++
+working correctly::
 
         static char     ok[] = "ok.\n";
 
@@ -190,7 +188,7 @@ top of the character read and write methods.
 
                         buf[n++] = ch;
                 }
-                
+
                 return n;
         }
 

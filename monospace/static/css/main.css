@@ -52,7 +52,7 @@ ul.sub-menu, ul.children { margin:0px 10px 0px 0px; }
 .entry code { font-weight: bold; }
 .sticky { border-bottom:3px dotted #C8C8C8; }
 
-.literal-block { background-color: #ddd; }
+.literal-block { background-color: #ddd; padding: 6px 12px 6px 12px; }
 
 .related { margin:20px 0px 0px 0px; }
 .nav { margin:30px 0px; text-align:center; }

@@ -1,2 +1,10 @@
 {% extends "index.html" %}
+<!-- tag.html -->
 {% block title %}{{ SITENAME }} - {{ tag }}{% endblock %}
+{% block content %}
+<ul>
+{% for article in articles %}
+  <li><a href = "{{ SITEURL }}/{{ article.url }}">{{ article.title }}</a></li>
+{% endfor %}
+</ul>
+{% endblock %}
