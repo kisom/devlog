@@ -1,0 +1,276 @@
+Write You a Forth, 0x02
+-----------------------
+
+:date: 2018-02-22 10:48
+:tags: wyaf, forth
+
+The basic framework will consist of two main parts:
+
+1. A modular I/O subsystem: on Linux, it makes sense to use the operating
+   system's terminal I/O features. On the MSP430, there won't be the luxury
+   of any operating system and I'll have to build out the I/O facilities. The
+   I/O interface will be defined in ``io.h``; the build system will eventually
+   have to decide which interface implementation to bring in.
+
+2. A toplevel function (the C++ ``main`` function, for example) that will
+   handle starting up the Forth system and bring us into an interpreter. We'll
+   put this in ``kforth.cc``.
+
+The project will also need a build system. For simplicity, I'll at least start
+with a basic Makefile::
+
+  # Makefile
+  CXXSTD :=     c++11
+  CXXFLAGS :=   -std=$(CXXSTD) -Werror -Wall -g -O0
+  OBJS :=       linux/io.o     \
+                kforth.o
+  TARGET :=     kforth
+  
+  all: $(TARGET)
+  
+  $(TARGET): $(OBJS)
+          $(CXX) $(CFLAGS) -o $@ $(OBJS)
+  
+  clean:
+          rm -f $(OBJS) $(TARGET)
+
+A simple frontend
+^^^^^^^^^^^^^^^^^
+
+Starting out with the most basic front end; we'll first want to include our I/O
+interface::
+
+        #include "io.h"
+
+If kforth is running on Linux, and it will be for the first stage, the
+frontend should pull in Linux specific pieces. ``linux.h`` is the place
+to set up the Linux-specific pieces::
+
+        #ifdef __linux__
+        #include "linux.h"
+        #endif // __linux__
+
+The interpreter function takes an I/O interface instance, and reads lines in
+an infinite loop, printing "ok" after each line is read. I'll go over the
+methods called on the ``interface`` instance when I get to the I/O subsystem.
+Printing the line buffer right now helps to verify that the I/O subsystem is
+working correctly:
+
+.. code-block: c++
+
+        static char     ok[] = "ok.\n";
+
+        static void
+        interpreter(IO &interface)
+        {
+                static size_t buflen = 0;
+                static char linebuf[81];
+
+                while (true) {
+                        buflen = interface.rdbuf(linebuf, 80, true, '\n');
+                        interface.wrln(linebuf, buflen);
+                        interface.wrbuf(ok, 4);
+                }
+        }
+
+The main function, for right now, can just instantiate a new I/O interface and
+then call the interpreter::
+
+        static char	banner[] = "kforth interpreter\n";
+        const size_t	bannerlen = 19;
+
+        int
+        main(void)
+        {
+        #ifdef __linux__
+                Console interface;
+        #endif
+	        interface.wrbuf(banner, bannerlen);
+                interpreter(interface);
+                return 0;
+        }
+
+That gives a good interactive test framework that I can use to start playing
+with the system. I'm trying to avoid bringing in ``iostream`` directly in order
+to force writing and building useful tooling built around the I/O interface.
+This is, after all, the Forth ideal: start with a core system, then build your
+world on top of that.
+
+The I/O interface
+^^^^^^^^^^^^^^^^^
+
+In the truest of C++ fashions, the I/O interface is defined with the ``IO``
+abstract base class::
+
+        #ifndef __KF_IO_H__
+        #define __KF_IO_H__
+
+        #include "defs.h"
+
+        class IO {
+        public:
+                // Virtual destructor is required in all ABCs.
+                virtual ~IO() {};
+
+The two building block methods are the lowest-level. My original plan was to
+include these in the interface, but there's one snag with that: line endings.
+But, we'll get to that.
+::
+
+                // Building block methods.
+                virtual char	rdch(void) = 0;
+                virtual void	wrch(char c) = 0;
+
+I could have just made the buffer I/O methods functions inside the ``io.h``
+header, but it seems easy to just include them here. I may move them outside
+the class later, though.
+::
+
+                // Buffer I/O.
+                virtual size_t	rdbuf(char *buf, size_t len, bool stopat, char stopch) = 0;
+                virtual void	wrbuf(char *buf, size_t len) = 0;
+
+Line I/O presents some challenges. On a serial console, it's the sequence 0x0d
+0x0a; on the Linux terminal, it's 0x0a. Therefore, reading a line is
+platform-dependent, and I can't just make this a generic function unless I want
+to handle all the cases. And, *surprise surprise*, right now I don't.
+::
+
+                // Line I/O
+                virtual bool	rdln(char *buf, size_t len, size_t *readlen) = 0;
+                virtual void	wrln(char *buf, size_t len) = 0;
+        };
+
+        #endif // __KF_IO_H__
+
+The Linux implementation is the ``Console`` (as seen in ``main``). The header
+file isn't interesting; it's basically a copy of ``io.h`` in ``linux/io.h``.
+::
+
+        #include <iostream>
+        #include "../io.h"
+        #include "io.h"
+
+The building blocks flush I/O. ``getchar`` is used instead of ``cin`` because
+the latter skips whitespace. Later, flushing may be removed but it's not a
+performance concern yet.
+::
+
+        char
+        Console::rdch()
+        {
+                std::cout.flush();
+                return getchar();
+        }
+
+
+        void
+        Console::wrch(char c)
+        {
+                std::cout.flush();
+                std::cout << c;
+        }
+
+The buffer read and write functions are straightforward, and are just built on
+top of the character read and write methods.
+::
+
+        size_t
+        Console::rdbuf(char *buf, size_t len, bool stopat, char stopch)
+        {
+                size_t	n = 0;
+                char	ch;
+
+                while (n < len) {
+                        ch = this->rdch();
+
+                        if (stopat && stopch == ch) {
+                                break;
+                        }
+
+                        buf[n++] = ch;
+                }
+                
+                return n;
+        }
+
+
+        void
+        Console::wrbuf(char *buf, size_t len)
+        {
+                for (size_t n = 0; n < len; n++) {
+                        this->wrch(buf[n]);
+                }
+        }
+
+Line reading doesn't reuse the buffer I/O functions, because the latter
+doesn't indicate whether the buffer ran out or the line has ended. I could add
+length checks and whatnot, but this is straightforward and gives me something
+to work with now. Again, the mantra is dumb and works rather than clever. For
+now.
+::
+
+        bool
+        Console::rdln(char *buf, size_t len, size_t *readlen) {
+                size_t	n = 0;
+                char	ch;
+                bool	line = false;
+
+                while (n < len) {
+                        ch = this->rdch();
+
+                        if (ch == '\n') {
+                                line = true;
+                                break;
+                        }
+
+                        buf[n++] = ch;
+                }
+
+                if (nullptr != readlen) {
+                        *readlen = n;
+                }
+                return line;
+        }
+
+Line writing, however, can absolutely reuse the buffer and character I/O
+methods.
+::
+
+        void
+        Console::wrln(char *buf, size_t len)
+        {
+                this->wrbuf(buf, len);
+                this->wrch(0x0a);
+        }
+
+``defs.h``
+^^^^^^^^^^
+
+The common definition file ``defs.h`` is just a front for the actual platform
+definitions::
+
+        #ifndef __KF_DEFS_H__
+        #define __KF_DEFS_H__
+
+        #ifdef __linux__
+        #include "linux/defs.h"
+        #endif
+
+
+        #endif // __KF_DEFS_H__
+
+The Linux definitions in ``linux/defs.h`` just bring in the standard
+definitions from the standard library::
+
+        #ifndef __KF_LINUX_DEFS_H__
+        #define __KF_LINUX_DEFS_H__
+
+        #include <stddef.h>
+
+        #endif
+
+Next steps
+^^^^^^^^^^
+
+I guess the next thing to do will be to start parsing.
