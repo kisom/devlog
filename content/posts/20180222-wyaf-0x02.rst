@@ -20,7 +20,7 @@ The project will also need a build system. For simplicity, I'll at least start
 with a basic Makefile::
 
   # Makefile
-  CXXSTD :=     c++11
+  CXXSTD :=     c++14
   CXXFLAGS :=   -std=$(CXXSTD) -Werror -Wall -g -O0
   OBJS :=       linux/io.o     \
                 kforth.o
