@@ -96,5 +96,7 @@ limiting factor. Fortunately, just a few days before I started this, the TI
 wiki was updated_ to note that the latest compilers now support C++11 and
 C++14, so I'll target C++14.
 
+.. _updated: http://processors.wiki.ti.com/index.php/C%2B%2B_Support_in_TI_Compilers#Status_as_of_February_2018
+
 I don't really know what I'm doing, so in the next section, I'll build out the
 basic framework and set up the build.
