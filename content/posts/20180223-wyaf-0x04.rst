@@ -120,7 +120,7 @@ It seems like the best place for this is in ``parser.cc`` --- though I might
 move into a token processor later. The definition for this goes in ``parser.h``,
 and the body is in ``parser.cc``::
 
-        // parse_num tries to parse the token as a signed base 10 number, 
+        // parse_num tries to parse the token as a signed base 10 number,
         // pushing it onto the stack if needed.
         bool
         parse_num(struct Token *token, Stack<KF_INT> &s)
@@ -311,3 +311,85 @@ Hopefully this works::
 
 So there's that. Okay, next time *for real* I'll do a vocabulary thing.
 
+As before, see the tag `part-0x04 <https://github.com/kisom/kforth/tree/part-0x04>`_.
+
+Part B
+^^^^^^^
+
+So I was feeling about the work above until I tried to run this on my
+Pixelbook::
+
+	$ ./kforth
+	kforth interpreter
+	<>
+	? 2
+	token: 2.
+	ok.
+	<5>
+	
+WTF‽ I spent an hour debugging this to realise it was a bounds overflow in
+``write_num``. This led me to ckecking the behaviour of the maximum and
+minimum values of ``KF_INT`` which led to me revising ``io.cc``::
+
+	#include "defs.h"
+	#include "io.h"
+	
+	#include <string.h>
+	
+	static constexpr size_t	nbuflen = 11;
+	
+	void
+	write_num(IO &interface, KF_INT n)
+	{
+	
+		// TODO(kyle): make the size of the buffer depend on the size of
+		// KF_INT.
+		char buf[nbuflen];
+		uint8_t i = nbuflen;
+		memset(buf, 0, i);
+		bool neg == n < 0;
+	
+		if (neg) {
+			interface.wrch('-');
+			n = ~n;
+		}
+	
+		while (n != 0) {
+			char ch = (n % 10) + '0';
+			if (neg && (i == nbuflen)) ch++;
+			
+This was the source of the actual bug: ``buf[i]`` where ``i`` == ``nbuflen``
+was stomping over the value of ``n``, which is stored on the stack, too.
+::
+
+			buf[i-1] = ch;
+			i--;
+			n /= 10;
+		}
+	
+		uint8_t buflen = nbuflen - i % nbuflen;
+		interface.wrbuf(buf+i, buflen);
+	}
+
+A couple of things here: first, the magic numbers were driving me crazy. It
+didn't fix the problem, but I changed all but one of the uses of them at one
+point and forgot one. So, now I'm doing the right thing (or the more right
+thing) and using a ``constexpr``. Another thing is changing from ``n *= -1``
+to ``n = ~n``. This requires the check for ``neg && (i == nbuflen)`` to add
+one to get it right, but it handles the case where *n* = -2147483648::
+
+	(gdb) p -2147483648 * -1
+	$1 = 2147483648
+	(gdb) p ~(-2147483648)
+	$2 = 2147483647
+	
+Notice that *$1* will overflow a ``uint32_t``, which means it will wrap back
+around to -2147483648, which means negating it this way has no effect. *~n + 1*
+is a two's complement.
+
+Finally, I made sure to wrap the buffer length so that we never try to write a
+longer buffer than the one we have.
+
+I feel dumb for making such a rookie mistake, but I suppose that's what
+happens when you stop programming for a living. The updated code is under the
+tag `part-0x04-update <https://github.com/kisom/kforth/tree/part-0x04-update>`_.
