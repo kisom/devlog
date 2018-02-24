@@ -328,7 +328,7 @@ Pixelbook::
 	<5>
 	
 WTF‽ I spent an hour debugging this to realise it was a bounds overflow in
-``write_num``. This led me to ckecking the behaviour of the maximum and
+``write_num``. This led me to checking the behaviour of the maximum and
 minimum values of ``KF_INT`` which led to me revising ``io.cc``::
 
 	#include "defs.h"
