@@ -316,7 +316,7 @@ As before, see the tag `part-0x04 <https://github.com/kisom/kforth/tree/part-0x0
 Part B
 ^^^^^^^
 
-So I was feeling about the work above until I tried to run this on my
+So I was feeling good about the work above until I tried to run this on my
 Pixelbook::
 
 	$ ./kforth
