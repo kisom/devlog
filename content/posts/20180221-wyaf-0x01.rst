@@ -56,7 +56,7 @@ won't be a target at first, but something to keep in mind as I progress.
 
 Eventually, I'd like to build a zero-allocation Forth that can run on an
 STM-32 or an MSP430, but the first goal is going to get a minimal Forth
-working. I'll define the stages as
+working. I'll define the stages tentatively as
 
 Stage 1
 ~~~~~~~
@@ -95,6 +95,15 @@ behind the others in supporting newer C++ standards, so those will be the
 limiting factor. Fortunately, just a few days before I started this, the TI
 wiki was updated_ to note that the latest compilers now support C++11 and
 C++14, so I'll target C++14.
+
+As a reminder to myself: this is not going to be the prettiest or best or most
+secure or production ready code. The goal is to have fun writing some software
+again and to rekindle some of the joy of computing that I had before. Once I
+have something working, I can go back and make an exercise of cleaning it up
+and refactoring it. The prose in this series is also not going to be my finest
+writing ever --- again, it suffices just to do it. The goal is to have
+something to show, not to achieve perfection; it'll mostly going to be hacked
+on while I'm on the bus or when I have a bit of downtime here and there.
 
 .. _updated: http://processors.wiki.ti.com/index.php/C%2B%2B_Support_in_TI_Compilers#Status_as_of_February_2018
 
