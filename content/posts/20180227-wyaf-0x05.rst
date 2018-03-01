@@ -1,7 +1,7 @@
 Write You a Forth, 0x05
 -----------------------
 
-:date: 2018-02-24 12:23
+:date: 2018-02-27 08:06
 :tags: wyaf, forth
 
 NB: Today's update was pretty large, so I don't show all of the code; this is

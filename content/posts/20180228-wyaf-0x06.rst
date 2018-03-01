@@ -1,0 +1,322 @@
+Write You a Forth, 0x06
+-----------------------
+
+:date: 2018-02-28 22:55
+:tags: wyaf, forth
+
+Lots of updates last night; SLOC-wise, I added a bunch of new definitions:
+
++ ``DEPTH``, ``.`` and ``.S`` to inspect the stack
++ ``/MOD``, ``*/``, and ``*/MOD``, which required adding some idea of a long
+  type
++  ``0<``, ``0=``, ``0>``, ``<``, ``=``, and ``>`` for conditionals
++ ``DUP`` and ``?DUP``
++ the logical operators ``AND``, ``OR``, and ``NEGATE``
++ ``ABS``
++ ``BYE`` moved from an interpreter hack to a defined word
++ ``D+`` and ``D-`` started me off on the concept of double numbers
++ ``DROP``, ``OVER``, and ``ROLL`` are more stack manipulation functions
+
+It's starting to feel a lot like a Forth...
+
+Speaking of SLOC, for shits and grins I decided to see how the code base has
+grown:
+
++-----------+---------------+--------+----------------------+---------------+
+| revision  | lines of code | growth |         focus        | exec size (b) |
++-----------+---------------+--------+----------------------+---------------+
+| 0x02      |      133      |   n/a  | starting point       |     38368     |
++-----------+---------------+--------+----------------------+---------------+
+| 0x03      |      245      |   1.8x | parsing              |     40920     |
++-----------+---------------+--------+----------------------+---------------+
+| 0x04      |      369      |   1.5x | stack / numerics     |     48736     |
++-----------+---------------+--------+----------------------+---------------+
+| 0x05      |      677      |   1.8x | initial dictionary   |     62896     |
++-----------+---------------+--------+----------------------+---------------+
+| 0x06      |     1436      |   2.1x | expanding vocabulary |     85256     |
++-----------+---------------+--------+----------------------+---------------+
+
+Note that the executable is compiled with ``-O0 -g`` on the
+``x86_64-linux-gnu`` target.
+
+It makes sense that expanding the vocabulary is going to be a huge code
+expansion. I did do more than that; so, I'm not really going to show most of
+the work I did for the new words (a lot of it is repetative and mechanical).
+
+System updates
+^^^^^^^^^^^^^^
+
+Before I started expanding the dictionary, though, I made some changes to
+the ``System``::
+
+        $ git diff HEAD^ system.h 
+        diff --git a/system.h b/system.h
+        index 00f4a34..91aa1fa 100644
+        --- a/system.h
+        +++ b/system.h
+        @@ -5,11 +5,24 @@
+        #include "io.h"
+        #include "stack.h"
+        
+        +typedef enum _SYS_STATUS : uint8_t {
+        +       STATUS_OK = 0,
+        +       STATUS_STACK_OVERFLOW = 1,
+        +       STATUS_STACK_UNDERFLOW = 2,
+        +       STATUS_EXECUTION_FAILURE = 3,
+        +       STATUS_UNKNOWN_WORD = 4
+        +} SYS_STATUS;
+        +
+        +class Word;
+        +
+        typedef struct _System {
+                Stack<KF_INT>    dstack;
+                IO              *interface;
+        -       struct Word     *dict;
+        +       Word            *dict;
+        +       SYS_STATUS       status;
+        } System;
+        
+        +void   system_clear_error(System *sys);
+        +void   system_write_status(System *sys);
+        
+        #endif // __KF_CORE_H__
+        \ No newline at end of file
+
+I've started adding a notion of system state, which I've deliberately kept
+separate from the parser state. The new functions aren't particularly
+interesting; they just write a string to the ``interface`` field so you
+get things like::
+
+        $ ./kforth
+        kforth interpreter
+        ? swap
+        stack underflow (error code 2).
+        ? what-word?
+        unknown word (error code 4).
+        ? 2
+        ok.
+
+Note that this is separate from the parser errors::
+
+        $ ./kforth 
+        kforth interpreter
+        ? AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        ok.
+        parse error: token too long
+        ? unknown word (error code 4).
+        ? 
+
+Though this test does show that the interpreter could be made more robust.
+
+I/O updates
+^^^^^^^^^^^
+
+The next thing I did was move the ``write_dstack`` function into ``io.cc``;
+this is needed to implement ``.S``. While I was at it, I decided to make
+``write_num`` finally work well and correctly, and I think I've got the final
+version done::
+
+        void
+        write_num(IO *interface, KF_INT n)
+        {
+                char buf[nbuflen];
+                uint8_t i = nbuflen - 1;
+                memset(buf, 0, nbuflen);
+
+                if (n < 0) {
+                        interface->wrch('-');
+                }
+
+I'm still not proud of this hack, but it seems to be the best way to deal with
+this right now::
+
+                else if (n == 0) {
+                        interface->wrch('0');
+                        return;
+                }
+
+                while (n != 0) {
+                        char x = n % 10;
+
+This was the magic that finally got it right: negating the digits as they're
+going into the buffer. No more trying to invert the whole number, just each
+digit::
+
+                        x = x < 0 ? -x : x;
+                        x += '0';
+                        buf[i--] = x;
+                        n /= 10;
+                }
+
+                interface->wrbuf(buf+i, nbuflen - i);
+        }
+
+My first pass at this wrote the string forwards, then reversed it. I didn't
+like that; while performance isn't my first concern, it just seemed like a
+fun challenge to get the reversed buffer written correctly.
+
+While I was in the I/O subsystem, I also decided to update the ``IO`` base
+class to include a ``newline`` method; I had a few instances of
+``interface->wrch('\n')`` sprinkled throughout, but that won't necessarily be
+correct elsewhere.
+
+Miscellaneous updates
+^^^^^^^^^^^^^^^^^^^^^^
+
+I add a new definition to the ``defs.h`` files: a ``KF_LONG`` type to prepare
+for the double numbers mentioned in the next section, and switched to static
+compilation.
+
+New words!
+^^^^^^^^^^
+
+Finally, I started adding the new words in. I'm still trying to figure out a
+good way to handle the address types (I think I'll just introduce a ``KF_ADDR``
+type) so I've punted on those for now.
+
+.. _pforth: http://www.softsynth.com/pforth/
+.. _gforth: https://www.gnu.org/software/gforth/
+
+One of the interesting challenges is dealing with the double numbers. These are
+on the stack as a pair of smaller numbers, e.g. if the double number type is 64
+bits and the standard number type is 32 bits, then you might see something like
+this (via pforth_)::
+
+        0 1 0 1 D+
+        ok
+        Stack<10> 0 2 
+
+So, how to deal with this? There's a ``D.`` word, which I don't have
+implemented yet, that will let me see what pforth_ and gforth_ do::
+
+        $ pforth -q
+        Begin AUTO.INIT ------
+        0 1 D. 1 0 D.
+        4294967296 1 
+        ^C
+        $ gforth   
+        Gforth 0.7.2, Copyright (C) 1995-2008 Free Software Foundation, Inc.
+        Gforth comes with ABSOLUTELY NO WARRANTY; for details type `license'
+        Type `bye' to exit
+        0 1 D. 1 0 D. 18446744073709551616 1  ok
+
+So, it looks like the first number on the stack is the low part, and the second
+is the high part. This is, once again, pretty straightforward: I'll need to
+shift the first number by the appropriate number of bits and then add the
+second number to it.
+
+        constexpr size_t dshift = (sizeof(KF_INT) * 8) - 1;
+
+        static bool
+        pop_long(System *sys, KF_LONG *d)
+        {
+                KF_INT	a = 0;
+                KF_INT	b = 0;
+                if (!sys->dstack.pop(&a)) {
+                        sys->status = STATUS_STACK_UNDERFLOW;
+                        return false;
+                }
+                
+                if (!sys->dstack.pop(&b)) {
+                        sys->status = STATUS_STACK_UNDERFLOW;
+                        return false;
+                }
+                
+                *d = static_cast<KF_LONG>(a) << dshift;
+                *d += static_cast<KF_LONG>(b);
+                sys->status = STATUS_OK;
+                return true;
+        }
+
+This function also shows off the new status work and how that turns out. I've
+kept the exec interface as a boolean to indicate success or failure.
+
+To push the results back onto the stack, I needed to first write a masking
+function to make sure to clear out any lingering bits::
+
+        static inline KF_INT
+        mask(size_t bits)
+        {
+                KF_INT m = 0;
+
+                for (size_t i = 0; i < bits; i++) {
+                        m += 1 << i;
+                }
+                
+                return m;
+        }
+
+I should probably check `Hacker's Delight <http://hackersdelight.org/>`_ to see
+if there's any tricks for this.
+
+With the mask available, getting a long into a pair of ints requires shifting
+and clearing for the high part and clearing for the low part::
+
+        static bool
+        push_long(System *sys, KF_LONG d)
+        {
+                KF_INT	a = static_cast<KF_INT>((d >> dshift) & mask(dshift));
+                KF_INT	b = static_cast<KF_INT>(d & mask(dshift));
+
+                if (!sys->dstack.push(b)) {
+                        sys->status = STATUS_STACK_OVERFLOW;
+                        return false;
+                }
+                
+                if (!sys->dstack.push(a)) {
+                        sys->status = STATUS_STACK_OVERFLOW;
+                        return false;
+                }
+                
+                sys->status = STATUS_OK;
+                return true;
+        }
+
+One of the words that interacts with doubles is ``D+``::
+
+        static bool
+        dplus(System *sys)
+        {
+                KF_LONG	da, db;
+                
+                if (!pop_long(sys, &da)) {
+                        // Status is already set.
+                        return false;
+                }
+                
+                if (!pop_long(sys, &db)) {
+                        // Status is already set.
+                        return false;
+                }
+                
+                da += db;
+                
+                if (!push_long(sys, da)) {
+                        // Status is already set.
+                        return false;
+                }
+                
+                // Status is already set.
+                return true;
+        }
+
+The only other thing I really did was to add a ``remove`` method to the Stack
+class to support ``ROLL``.
+
+Huge diff, but not as much to say about it --- next up, I think I'm going to
+introduce the ``KF_ADDR`` type and start working on some of the address
+interaction stuff. I'll also add more of the double number words, too. The
+words I still have to implement from the `FORTH-83 standard`_ nuclear layer
+are:
+
++ ``!``, ``+!``, ``@``, ``C!``, ``C@``, ``CMOVE``, ``CMOVE>``, ``COUNT``,
+  ``FILL``: memory manipulation words
++ ``DNEGATE``, ``MAX``, ``MIN``, ``MOD``, ``XOR``: more arithmetic words
++ ``EXECUTE``, ``EXIT``, ``I``, ``J``, ``PICK``: various words
++  ``>R``, ``R>``, ``R@``: return stack words
++ ``U<``, ``UM*``, ``UM/MOD``: unsigned math words
+
+.. _FORTH-83 standard: http://forth.sourceforge.net/standard/fst83/fst83-12.htm
+
+As before, the snapshot for this update is tagged `part-0x06
+<https://github.com/kisom/kforth/tree/part-0x06>`_.
