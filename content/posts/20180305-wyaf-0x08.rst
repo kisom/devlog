@@ -1,0 +1,441 @@
+Write You a Forth, 0x08
+-----------------------
+
+:date: 2018-03-05 21:42
+:tags: wyaf, forth
+
+After reading some more in Threaded Interpreted Languages (TIL_ from now on),
+I've decided to start over.
+
+.. _TIL: http://wiki.c2.com/?ThreadedInterpretiveLanguage
+
+Some design choices that didn't really work out:
+
++ the system structure
++ not making it easier to test building for different platforms
++ my linked list approach to the dictionary
++ my class-based approach to words
+
+I get the distinct feeling that I could (maybe should) be doing this in C99, so
+I think I'll switch to that.
+
+The new design
+^^^^^^^^^^^^^^
+
+I'll need to provide a few initial pieces:
+
+1. eval.c
+2. stack.c
+3. the platform parts
+
+I'll skip the parser at first and hand hack some things, then try to
+port over my I/O layer from before.
+
+Also, talking to Steve got me to think about doing this in C99, because
+a lot of the fun I've had with computers in the past involved hacking
+on C projects. So, C99 it is.
+
+
+Platforms
+^^^^^^^^^
+
+I've elected to set a new define type, ``PLATFORM_$PLATFORM``. The Makefile
+sets this, so it's easier now to test building for different platforms.
+Here's the current top-level definitions::
+
+        #ifndef __KF_DEFS_H__
+        #define __KF_DEFS_H__
+        
+        #include <stdbool.h>
+        #include <stddef.h>
+        #include <stdint.h>
+        
+        #ifdef PLATFORM_pc
+        #include "pc/defs.h"
+        #else
+        #include "default/defs.h"
+        #endif
+
+The ``pc/defs.h`` header::
+
+        #ifndef __KF_PC_DEFS_H__
+        #define __KF_PC_DEFS_H__
+        
+        typedef int32_t	KF_INT;
+        typedef uintptr_t KF_ADDR;
+        
+        static const size_t	DSTACK_SIZE = 65535;
+        static const size_t	RSTACK_SIZE = 65535;
+        static const size_t	DICT_SIZE   = 65535;
+        
+        #endif /* __KF_PC_DEFS_H__ */
+        
+        #endif /* __KF_DEFS_H__ */
+
+The new stack
+^^^^^^^^^^^^^
+
+I'll start with a much simplified stack interface::
+
+        #ifndef __KF_STACK_H__
+        #define __KF_STACK_H__
+        
+        /* data stack interaction */
+        bool	dstack_pop(KF_INT *);
+        bool	dstack_push(KF_INT);
+        bool	dstack_get(size_t, KF_INT *);
+        size_t	dstack_size(void);
+        void	dstack_clear(void);
+        
+        /* return stack interaction */
+        bool	rstack_pop(KF_ADDR *);
+        bool	rstack_push(KF_ADDR);
+        bool	rstack_get(size_t, KF_ADDR *);
+        size_t	rstack_size(void);
+        void	rstack_clear(void);
+        
+        #endif /* __KF_STACK_H__ */
+
+The implementation is simple enough; the ``rstack`` interface is similar
+enough to the ``dstack`` that I'll just show the first::
+
+        #include "defs.h"
+        #include "stack.h"
+        
+        static KF_INT	dstack[DSTACK_SIZE] = {0};
+        static size_t	dstack_len = 0;
+        
+        bool
+        dstack_pop(KF_INT *a)
+        {
+        	if (dstack_len == 0) {
+        		return false;
+        	}
+        
+        	*a = dstack[--dstack_len];
+        	return true;
+        }
+        
+        bool
+        dstack_push(KF_INT a)
+        {
+        	if (dstack_len == DSTACK_SIZE) {
+        		return false;
+        	}
+        
+        	dstack[dstack_len++] = a;
+        	return true;
+        }
+        
+        bool
+        dstack_get(size_t i, KF_INT *a)
+        {
+        	if (i >= dstack_len) {
+        		return false;
+        	}
+        
+        	*a = dstack[dstack_len - i - 1];
+        	return true;
+        }
+        
+        size_t
+        dstack_size()
+        {
+        	return dstack_len;
+        }
+        
+        void
+        dstack_clear()
+        {
+        	dstack_len = 0;
+        }
+        
+Words
+^^^^^
+
+Reading TIL has given me some new ideas on how to implement words::
+
+        #ifndef __KF_WORD_H__
+        #define __KF_WORD_H__
+        
+        /*
+         * Every word in the dictionary starts with a header:
+         * uint8_t	 length;
+         * uint8_t	 flags;
+         * char		*name;
+         * uintptr_t	 next;
+         *
+         * The body looks like the following:
+         * uintptr_t	 codeword;
+         * uintptr_t	 body[];
+         *
+         * The codeword is the interpreter for the body. This is defined in
+         * eval.c. Note that a native (or builtin function) has only a single
+         * body element.
+         *
+         * The body of a native word points to a function that's compiled in already.
+         */
+        
+        
+        /*
+         * store_native writes a new dictionary entry for a native-compiled
+         * function.
+         */
+        void	store_native(uint8_t *, const char *, const uint8_t, void(*)(void));
+        
+        /*
+         * match_word returns true if the current dictionary entry matches the
+         * token being searched for.
+         */
+        bool	match_word(uint8_t *, const char *, const uint8_t);
+        
+        /*
+         * word_link returns the offset to the next word.
+         */
+        size_t	word_link(uint8_t *);
+        	
+        size_t	word_body(uint8_t *);
+        
+        #endif /* __KF_WORD_H__ */
+
+The codeword is the big changer here. I've put a native evaluator and
+a codeword executor in the ``eval`` files::
+
+        #ifndef __KF_EVAL_H__
+        #define __KF_EVAL_H__
+        
+        #include "defs.h"
+        
+        /*
+         * cwexec is the codeword executor. It assumes that the uintptr_t
+         * passed into it points to the correct executor (e.g. nexec), 
+         * which is called with the next address.
+         */
+        void	cwexec(uintptr_t);
+        
+        
+        /*
+         * nexec is the native executor. 
+         *
+         * It should take a uintptr_t containing the address of a code block
+         * and will execute the function starting there. The function should
+         * half the signature void(*target)(void) - a function returning
+         * nothing and taking no arguments.
+         */
+        void	nexec(uintptr_t);
+        
+        static const uintptr_t	nexec_p = (uintptr_t)&nexec;
+        
+        
+        #endif /* __KF_EVAL_H__ */
+
+The implementations of these are short::
+
+        #include "defs.h"
+        #include "eval.h"
+        
+        #include <string.h>
+
+``nexec`` just casts its target to a void function and calls it.
+
+::
+
+        void
+        nexec(uintptr_t target)
+        {
+        	((void(*)(void))target)();
+        }
+
+``cwexec`` is the magic part: it reads a pair of addresses; the first
+is the executor, and the next is the start of the code body. In the
+case of native execution, this is a pointer to a function.
+
+::
+
+        void
+        cwexec(uintptr_t entry)
+        {
+        	uintptr_t	target = 0;
+        	uintptr_t	codeword = 0;
+        
+        	memcpy(&codeword, (void *)entry, sizeof(uintptr_t));	
+        	memcpy(&target, (void *)(entry + sizeof(uintptr_t)), sizeof(uintptr_t));	
+        	((void(*)(uintptr_t))codeword)(target);
+        }
+        
+
+So I wrote a quick test program to check these out::
+
+        #include "defs.h"
+        #include "eval.h"
+        #include <stdio.h>
+        #include <string.h>
+        
+        static void
+        hello(void)
+        {
+                printf("hello, world\n");
+        }
+        
+        int
+        main(void)
+        {
+                uintptr_t       target = (uintptr_t)hello;
+        
+                nexec(hello);
+        
+                uint8_t arena[32] = { 0 };
+                uintptr_t arena_p = (uintptr_t)arena;
+                
+                memcpy(arena, (void *)&nexec_p, sizeof(nexec_p));
+                memcpy(arena + sizeof(nexec_p), (void *)&target, sizeof(target));
+        
+                cwexec(arena_p);
+        }
+
+But does it work?
+
+::
+
+        $ gcc -o eval_test eval_test.c eval.o
+        $ ./eval_test 
+        hello, world
+        hello, world
+
+What magic is this?
+
+Now I need to write a couple functions to make this easier::
+
+        #include "defs.h"
+        #include "eval.h"
+        #include "word.h"
+        
+        #include <string.h>
+        
+        static uint8_t	dict[DICT_SIZE] = {0};
+        static size_t	last = 0;
+        
+The first two functions will operate on the internal dict, and are
+intended to be used to maintain the internal dictionary. The first
+adds a new word to the dictionary, and the second attempts to look
+up a word by name and execute it::
+
+        void
+        append_native_word(const char *name, const uint8_t len, void(*target)(void))
+        {
+        	store_native(dict+last, name, len, target);
+        }
+        
+        bool
+        execute(const char *name, const uint8_t len)
+        {
+        	size_t	offset = 0;
+        	size_t	body = 0;
+        	while (true) {
+        		if (!match_word(dict+offset, name, len)) {
+        			if ((offset = word_link(dict+offset)) == 0) {
+        				return false;
+        			}
+        			continue;
+        		}
+        
+        		body = word_body(dict+offset);
+        		cwexec(dict + body + offset);
+        		return true;
+        	}
+        }
+
+Actually, now that I think about it, maybe I should also add in a function
+to return a uintptr_t to the word, too. Should this point to the header or
+to the body? My first instinct is to point to the header and have the caller
+(me) use ``word_body`` to get the actual body. That being said, however,
+we already have the useful information from the header (namely, the name and
+length); the link is only useful for the search phase. Following this logic
+means that ``lookup`` will return a pointer to the body. So say we all::
+        
+        bool
+        lookup(const char *name, const uint8_t len, uintptr_t *ptr)
+        {
+        	size_t	offset = 0;
+        	size_t	body = 0;
+        	while (true) {
+        		if (!match_word(dict+offset, name, len)) {
+        			if ((offset = word_link(dict+offset)) == 0) {
+        				return false;
+        			}
+        			continue;
+        		}
+        
+        		body = word_body(dict+offset);
+        		*ptr = (uintptr_t)(dict + offset + body);
+        		return true;
+        	}
+        
+        }
+
+The rest of the functions in the header (all of which are publicly
+visible) are made available for use later. Maybe (but let's be honest,
+probably not) I'll go back later and make these functions private.
+
+The first such function stores a native (built-in) word. This is what
+``append_native_word`` is built around::
+
+        void
+        store_native(uint8_t *entry, const char *name, const uint8_t len, void(*target)(void))
+        {
+        	uintptr_t	target_p = (uintptr_t)target;
+        	size_t		link = 2 + len + (2 * sizeof(uintptr_t));
+        
+        	/* write the header */
+        	entry[0] = len;
+        	entry[1] = 0; // flags aren't used yet
+        	memcpy(entry+2, name, len);
+        	memcpy(entry+2+len, &link, sizeof(link));
+        
+        	/* write the native executor codeword and the function pointer */
+        	memcpy(entry, (uint8_t *)(&nexec_p), sizeof(uintptr_t));
+        	memcpy(entry + sizeof(uintptr_t), (uint8_t *)(&target_p), sizeof(uintptr_t));
+        }
+        
+The rest of the functions are utility functions. ``match_word`` is used
+to... match words::
+
+        bool
+        match_word(uint8_t *entry, const char *name, const uint8_t len)
+        {
+        	if (entry[0] != len) {
+        		return false;
+        	}
+        
+        	if (memcmp(entry+2, name, len) != 0) {
+        		return false;
+        	}
+        
+        	return true;
+        }
+
+Finally, ``word_link`` returns the offset to the next function (e.g. so
+as to be able to do ``entry+offset``) and ``word_body`` returns the offset
+to the body of the word::
+        
+        size_t
+        word_link(uint8_t *entry)
+        {
+        	size_t	link;
+        
+        	if (entry[0] == 0) {
+        		return 0;
+        	}
+        	memcpy(&link, entry+2+entry[0], sizeof(link));
+        	return link;
+        }
+        
+        size_t
+        word_body(uint8_t *entry)
+        {
+        	return 2 + entry[0] + sizeof(size_t);
+        }
+        
+
+That about wraps up this chunk of work. Next to maybe start porting builtins? I
+also need to rewrite the parser and I/O layer.
