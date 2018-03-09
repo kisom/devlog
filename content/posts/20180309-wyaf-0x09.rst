@@ -1,0 +1,79 @@
+Write You a Forth, 0x09
+-----------------------
+
+:date: 2018-03-09 13:10
+:tags: wyaf, forth
+
+So the last post had some issues and I hadn't updated the front end to use the
+new tooling. I removed the arena and switched to the internal dictionary::
+
+        #include "defs.h"
+        #include "eval.h"
+        #include "stack.h"
+        #include "word.h"
+
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+
+        void
+        hello(void)
+        {
+                printf("hello, world\n");
+        }
+
+        int
+        main(void)
+        {
+                dstack_push(2);
+                dstack_push(3);
+
+                append_native_word("hello", 5, hello);
+                uintptr_t	hwb = 0;
+
+                if (!lookup("hello", 5, &hwb)) {
+                        fprintf(stderr, "failed to lookup 'hello'\n");
+                        exit(1);
+                }
+                printf("hello: 0x%lx\n", (unsigned long)hwb);
+                if (!execute("hello", 5)) {
+                        fprintf(stderr, "failed to execute 'hello'\n");
+                        exit(1);
+                }
+
+                printf("finished\n");
+        }
+
+Also, there's a (not-so) subtle bug in ``word.c``: the header is overwritten by the function
+body, which is the path to segfaulting. I've also added an offset variable to make tracking
+the offset easier::
+
+        void
+        store_native(uint8_t *entry, const char *name, const uint8_t len, void(*target)(void))
+        {
+                uintptr_t       target_p = (uintptr_t)target;
+        -       size_t          link = 2 + len + (2 * sizeof(uintptr_t));
+        +       size_t          offset = 2 + len + sizeof(size_t);
+        +       size_t          link = offset + (2 * sizeof(uintptr_t));
+        
+                /* write the header */
+                entry[0] = len;
+        @@ -45,8 +66,9 @@ store_native(uint8_t *entry, const char *name, const uint8_t len, void(*target)(
+                memcpy(entry+2+len, &link, sizeof(link));
+        
+                /* write the native executor codeword and the function pointer */
+        -       memcpy(entry, (uint8_t *)(&nexec_p), sizeof(uintptr_t));
+        -       memcpy(entry + sizeof(uintptr_t), (uint8_t *)(&target_p), sizeof(uintptr_t));
+        +       memcpy(entry+offset, (uint8_t *)(&nexec_p), sizeof(uintptr_t));
+        +       offset += sizeof(uintptr_t);
+        +       memcpy(entry+offset, (uint8_t *)(&target_p), sizeof(uintptr_t));
+        }
+
+The header file ``word.h`` didn't contain ``append_native_word``, ``lookup``,
+or ``execute``, so that gets updated too. The end result is::
+
+        $ ./kf-default     
+        hello: 0x6cbc6f
+        hello, world
+        finished
+
