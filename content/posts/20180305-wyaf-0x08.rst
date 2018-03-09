@@ -439,3 +439,5 @@ to the body of the word::
 
 That about wraps up this chunk of work. Next to maybe start porting builtins? I
 also need to rewrite the parser and I/O layer.
+
+The code is tagged with `part-0x08 <https://github.com/kisom/kforth/tree/part-0x08>`_.
