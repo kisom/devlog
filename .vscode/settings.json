@@ -1,3 +1,4 @@
 {
-	"restructuredtext.workspaceRoot": "/home/kyle/code/sites/dl"
+	"restructuredtext.workspaceRoot": "/home/kyle/code/sites/dl",
+	"python.linting.pylintEnabled": false
 }
