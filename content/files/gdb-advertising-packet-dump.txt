@@ -1,0 +1,23 @@
+(gdb) bt
+#0  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:51
+#1  0x00007f9dd6cebf5d in __GI_abort () at abort.c:90
+#2  0x0000000000402125 in showBeacon (ad=...) at scanner.cc:29
+#3  0x000000000040201c in main () at scanner.cc:54
+(gdb) p ad
+$1 = (const BLEPP::AdvertisingResponse &) @0xd61100: {address = "f1:02:0a:f4:64:34",
+  type = BLEPP::LeAdvertisingEventType::ADV_IND, rssi = -54 '\312',
+  UUIDs = std::vector of length 0, capacity 0, uuid_16_bit_complete = false,
+  uuid_32_bit_complete = false, uuid_128_bit_complete = false,
+  local_name = {<boost::optional_detail::optional_base<BLEPP::AdvertisingResponse::Name>> = {<boost::opt
+ional_detail::optional_tag> = {<No data fields>}, m_initialized = false, m_storage = {dummy_ = {
+          data = '\000' <repeats 39 times>, aligner_ = {<No data fields>}}}}, <No data fields>},
+  flags = {<boost::optional_detail::optional_base<BLEPP::AdvertisingResponse::Flags>> = {<boost::optiona
+l_detail::optional_tag> = {<No data fields>}, m_initialized = true, m_storage = {dummy_ = {
+          data = "\000\001\001\000\000\000\000\000\020\022\326\000\000\000\000\000\021\022\326\000\000\0
+00\000\000\021\022\326\000\000\000\000", aligner_ = {<No data fields>}}}}, <No data fields>},
+  manufacturer_specific_data = std::vector of length 1, capacity 1 = {
+    std::vector of length 25, capacity 25 = {89 'Y', 0 '\000', 2 '\002', 21 '\025', 69 'E', 78 'N',
+      86 'V', 83 'S', 66 'B', 0 '\000', 0 '\000', 0 '\000', 123 '{', 2 '\002', 0 '\000', 0 '\000',
+      84 'T', 156 '\234', 74 'J', 141 '\215', 1 '\001', 0 '\000', 0 '\000', 0 '\000', 211 '\323'}},
+  service_data = std::vector of length 0, capacity 0,
+  unparsed_data_with_types = std::vector of length 0, capacity 0}
