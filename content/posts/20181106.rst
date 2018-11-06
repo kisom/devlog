@@ -1,0 +1,68 @@
+2018-11-06
+==========
+
+:date: 2018-11-06 11:43
+:tags: journal, robots, haskell
+
+It's been a crazy past couple weeks. Work has been extremely busy
+(and productive), lots happened on the personal side of things, and
+there's a lot of tech stuff that hasn't made it onto here, so I'm just
+going to move along. I haven't been working so much on personal stuff
+(or even class) outside of work, so there's not been a whole lot to
+put here. Interest is still high on a lot of fronts, but time has been
+limited. I've had some good conversations with a coworker about some
+maths and philosophy stuff, including finding out what my idea for the
+neural-network-as-memory (e.g. AQE_) was called (translational embedding)
+and ended up with a slew of papers to read on the subject.
+
+.. _AQE: https://github.com/kisom/aqe
+
+I also got the itch to write Haskell again, so I started a project_ to
+work on. It's a location service, and I've enumerated clear milestones
+to get there without trying to do everything at once.
+
+.. _project: https://github.com/kisom/wherami
+
+On the robotics side, the Anki Vector SDK was released, and I decided
+to build a little Raspberry Pi-based neural network terminal thing.
+
+.. image:: /files/images/20181106_pi-ncs_s.jpg
+   :alt: Pi neural compute system.
+   :align: center
+   :target: /files/images/20181106_pi-ncs.jpg
+
+This is based around the Raspberry Pi 3B+, which was a huge pain to get
+setup. Ubuntu has made their Pi images pretty anti-local-user, and I had
+to find someone else's image linked via a forum post. I wanted Ubuntu
+18.04 because A) security updates and B) ROS Melodic only supports armhf
+on Ubuntu. I looked at doing arm64, but that was going to be even more
+painful. The touchscreen just worked once I got a working Ubuntu image.
+A quick list of parts:
+
++ the official Raspberry Pi `touch display`_
++ `Smarticase smartipi case <https://smarticase.com/collections/all/products/smartipi-touch?variant=11864926209>`_
++ the Raspberry Pi `camera module v2 <https://www.raspberrypi.org/products/camera-module-v2/>`_
++ Movidius `neural compute stick <https://software.intel.com/en-us/neural-compute-stick>`_
+  (we'll see how useful this ends up being)
++ I'd be remiss not to mention the Atreus_ keyboard
+
+.. _touch display: https://www.raspberrypi.org/products/raspberry-pi-touch-display/
+.. _atreus: https://atreus.technomancy.us 
+
+My idea is to use this to maybe do some API integration with Digit
+(my Anki Vector), experimenting with various capabilities. I'm sort
+of loathe to turn it into more of a puppet than it is. I'd also use it
+for other experiments in neural networks (though I did order a second
+neural compute stick for my laptop).
+
+The Vector_ has been a lot of fun; I appreciate their approach to the
+problem in that a "pet robot" is naturally more credible than trying to
+make something human. That is, I think that more progress can be made
+in emulating non-human intelligences now, and that it makes more sense
+to get a working robot that feels like it's "alive," for some sense
+of that word. This is admittedly all very vague and I need to sharpen
+my thinking here. It probably merits its own essay. Suffice it to say
+for this arena that Digit has been making me think a lot about HRI
+(human-robot interactions) and what intelligence looks like.
+
+.. _Vector: https://www.anki.com/en-us/vector
