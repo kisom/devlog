@@ -1,0 +1,2 @@
+pelican >= 3.7.1
+markdown >= 3.0.0
