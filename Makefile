@@ -87,8 +87,7 @@ stopserver:
 
 publish:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(PUBLISHCONF) $(PELICANOPTS)
-	find $(OUTPUTDIR) -type d -exec chmod 0755 '{}' \;
-	find $(OUTPUTDIR) -type f -exec chmod 0644 '{}' \;
+	ls output/*.rss
 
 ssh_upload: publish
 	scp -P $(SSH_PORT) -r $(OUTPUTDIR)/* $(SSH_USER)@$(SSH_HOST):$(SSH_TARGET_DIR)
